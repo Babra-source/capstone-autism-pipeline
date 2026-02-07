@@ -1,107 +1,82 @@
-
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.utils import save_image
-import os
-from pathlib import Path
-from torchvision.datasets.folder import default_loader, IMG_EXTENSIONS
 import torch
+from pathlib import Path
+from torchvision import datasets, transforms
+from torchvision.utils import save_image
+from torch.utils.data import DataLoader
 
 
-# Transforms for loading and resizing
-base_transforms = transforms.Compose([
+# Step 1: Resize and convert images to tensors
+simple_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
 ])
 
-# Occlusion transform (applied separately)
-occlusion_transform = transforms.RandomErasing(
-    p=1.0,  # Always apply occlusion when we want it
-    scale=(0.02, 0.08),
-    ratio=(0.3, 3.3),
-    value=0
-)
+
+# Step 2: Make a black box in the center of images
+class BlackBox:
+    def __init__(self):
+        self.box_size_min = 0.2  # 20% of image
+        self.box_size_max = 0.55  # 40% of image
+    
+    def __call__(self, image):
+        # Get image size
+        channels, height, width = image.shape
+        
+        # Decide random box size
+        box_area = torch.rand(1).item() * (self.box_size_max - self.box_size_min) + self.box_size_min
+        box_height = int(height * box_area)
+        box_width = int(width * box_area)
+        
+        # Put box in center
+        center_y = height // 2
+        center_x = width // 2
+        
+        top = center_y - box_height // 2
+        bottom = top + box_height
+        left = center_x - box_width // 2
+        right = left + box_width
+        
+        # Make it black
+        image[:, top:bottom, left:right] = 0
+        
+        return image
 
 
-# Resolve project-root-relative paths (works regardless of CWD)
-project_root = Path(__file__).resolve().parents[2]
-root = project_root / "data" / "trial_image"
+# Step 3: Set up paths
+dataset_path = "C:/Users/HomePC/Capstone_code/capstone-autism-pipeline/data/Autism_Dataset/train"
+output_path = "C:/Users/HomePC/Capstone_code/capstone-autism-pipeline/data/occluded_images"
 
+# Step 4: Load images
+dataset = datasets.ImageFolder(dataset_path, transform=simple_transform)
+loader = DataLoader(dataset, batch_size=32, shuffle=False)
 
-def make_dataset(root_path, transform):
-    root_path = Path(root_path)
-    if not root_path.exists():
-        raise FileNotFoundError(f"Image root directory does not exist: {root_path}")
+# Step 5: Create output folders
+Path(output_path).mkdir(parents=True, exist_ok=True)
+for class_name in dataset.classes:
+    Path(output_path, class_name).mkdir(exist_ok=True)
 
-    subdirs = [p for p in root_path.iterdir() if p.is_dir()]
-    if subdirs:
-        ds = datasets.ImageFolder(root=str(root_path), transform=transform)
-        if len(ds) == 0:
-            raise RuntimeError(f"No images found in subdirectories of {root_path}")
-        return ds
+# Step 6: Add black boxes and save
+black_box = BlackBox()
+image_count = 0
 
-    # collect image files in flat directory
-    files = [str(p) for p in sorted(root_path.iterdir()) if p.is_file() and any(p.name.lower().endswith(ext) for ext in IMG_EXTENSIONS)]
-    if not files:
-        raise RuntimeError(f"No images found in {root_path}")
+for images, labels in loader:
+    for i in range(len(images)):
+        # Add black box
+        image_with_box = black_box(images[i])
+        
+        # Figure out which folder to save to
+        label = labels[i].item()
+        class_name = dataset.classes[label]
+        
+        # Save the image
+        filename = f"occluded_{image_count:04d}.png"
+        save_path = Path(output_path, class_name, filename)
+        save_image(image_with_box, save_path)
+        
+        image_count += 1
+    
+    # Show progress every 320 images
+    if image_count % 320 == 0:
+        print(f"Processed {image_count} images...")
 
-    class FlatImageDataset(torch.utils.data.Dataset):
-        def __init__(self, files, transform):
-            self.files = files
-            self.transform = transform
-
-        def __len__(self):
-            return len(self.files)
-
-        def __getitem__(self, idx):
-            path = self.files[idx]
-            img = default_loader(path)
-            if self.transform:
-                img = self.transform(img)
-            # return dummy label -1 for flat dataset
-            return img, -1
-
-    return FlatImageDataset(files, transform)
-
-# create dataset and dataloader
-train_dataset = make_dataset(root, base_transforms)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
-
-# output directory inside project data folder
-output_dir = project_root / "data" / "occluded_images"
-output_dir.mkdir(parents=True, exist_ok=True)
-
-# If dataset has classes (ImageFolder), create subdirectories; otherwise use 'uncategorized'
-has_classes = hasattr(train_dataset, "classes")
-if has_classes:
-    for class_name in train_dataset.classes:
-        (output_dir / class_name).mkdir(parents=True, exist_ok=True)
-else:
-    (output_dir / "uncategorized").mkdir(parents=True, exist_ok=True)
-
-
-# Process and save occluded images
-total_images = 0
-for batch_idx, (images, labels) in enumerate(train_loader):
-    # Apply occlusion per image (RandomErasing expects [C,H,W])
-    for i in range(images.size(0)):
-        img = images[i]
-        occluded_img = occlusion_transform(img)
-
-        label = labels[i].item() if isinstance(labels[i], torch.Tensor) else int(labels[i])
-        if has_classes and label >= 0:
-            class_name = train_dataset.classes[label]
-            out_dir = output_dir / class_name
-        else:
-            out_dir = output_dir / "uncategorized"
-
-        img_filename = f"occluded_{total_images:04d}.png"
-        save_path = out_dir / img_filename
-        save_image(occluded_img, str(save_path))
-        total_images += 1
-
-    if (batch_idx + 1) % 10 == 0:
-        print(f"Processed {total_images} images...")
-
-print(f"\nDone! {total_images} occluded images saved in '{output_dir}'")
+print(f"\nAll done! {image_count} images saved to {output_path}")

@@ -15,6 +15,8 @@ export default function Webcam({ onResult }: Props) {
   const [error, setError]           = useState<string | null>(null)
   const [captured, setCaptured]     = useState<string | null>(null)
 
+
+  
   const startCam = async () => {
     setError(null)
     try {

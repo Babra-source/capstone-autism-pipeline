@@ -1,0 +1,10 @@
+fastapi==0.118.0
+uvicorn[standard]==0.23.2
+torch==2.11.0
+pillow==12.1.1
+numpy==2.4.3
+python-multipart==0.0.6
+joblib==1.3.2
+timm==0.9.0
+mediapipe==0.10.33
+scikit-learn==1.4.2

@@ -1,2 +1,30 @@
 data/
-data/**
+
+# Python cache and notebook artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Local environment
+.venv/
+venv/
+
+# Frontend dependencies
+node_modules/
+
+# Model files (too large for git)
+*.pth
+*.pickle
+*.pkl
+*.h5
+*.pt
+*.onnx
+*.task
+
+# Experiment outputs and large data files
+Experiments/CASME/Autism/data/
+*.avi
+*.mp4
+*.xlsx
+*.npy
+*.npz

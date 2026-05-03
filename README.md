@@ -3,7 +3,7 @@
 ## Project Overview
 **Evaluating the Effectiveness of Facial Expression Recognition and Eye Tracking in Detecting Emotional Cues of Minimal Verbal Autistic Students**
 
-This project implements a multimodal emotion detection system that combines **Facial Expression Recognition (FER)** and **Eye Tracking** to detect emotional cues in minimally verbal autistic students. The system evaluates two fusion strategies — early fusion and late fusion — across two datasets: the Mendeley Facial Emotion Recognition Dataset and the CASME II micro-expression dataset.
+This project implements a multimodal emotion detection system that combines **Facial Expression Recognition (FER)** and **Eye Tracking** to detect emotional cues in minimally verbal autistic students. The system evaluates two fusion strategies: early fusion and late fusion , across two datasets: the Mendeley Facial Emotion Recognition Dataset and the CASME II micro-expression dataset.
 
 ---
 
@@ -105,4 +105,3 @@ This project used AI assistance (Claude AI — Sonnet 4.6, January–April 2026)
 
 ## License
  Not licensed for commercial use.
- 
